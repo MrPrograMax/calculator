@@ -1,0 +1,148 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Пример REST API для калькулятора",
+        "title": "Calculator API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/api/calculate": {
+            "post": {
+                "description": "Принимает список выражений и возвращает результаты вычислений",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "calculator"
+                ],
+                "summary": "Выполнить вычисления",
+                "parameters": [
+                    {
+                        "description": "Список выражений для вычисления",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Expression"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Результаты вычислений",
+                        "schema": {
+                            "$ref": "#/definitions/rest.getCalculateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные входные данные",
+                        "schema": {
+                            "$ref": "#/definitions/rest.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/rest.errorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.Expression": {
+            "description": "Математическое выражение для вычисления",
+            "type": "object",
+            "properties": {
+                "left": {
+                    "type": "string"
+                },
+                "op": {
+                    "$ref": "#/definitions/model.Operation"
+                },
+                "right": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/model.Type"
+                },
+                "var": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Operation": {
+            "description": "Арифметическая операция: +, -, *, /",
+            "type": "string",
+            "enum": [
+                "Unknown",
+                "+",
+                "-",
+                "*",
+                "/"
+            ],
+            "x-enum-varnames": [
+                "UnknownOperation",
+                "Addition",
+                "Subtraction",
+                "Multiplication",
+                "Division"
+            ]
+        },
+        "model.Result": {
+            "description": "Результат вычисления выражения",
+            "type": "object",
+            "properties": {
+                "Value": {
+                    "type": "integer"
+                },
+                "Var": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Type": {
+            "description": "Тип операции: calc - вычисление, print - вывод результата",
+            "type": "string",
+            "enum": [
+                "Unknown",
+                "calc",
+                "print"
+            ],
+            "x-enum-varnames": [
+                "UnknownType",
+                "Calc",
+                "Print"
+            ]
+        },
+        "rest.errorResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "rest.getCalculateResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Result"
+                    }
+                }
+            }
+        }
+    }
+}

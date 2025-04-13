@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package calculator;
+
+option go_package = "calculator/api/calculator;calculator";
+
+service URLService {
+  rpc Calculate(CalculateRequest) returns (CalculateResponse) {}
+}
+
+// Запрос на расчет.
+message CalculateRequest {
+  message Data {
+    // Тип инструкции
+    string type = 1;
+    // Тип вычислительной операции
+    optional string op = 2;
+    // Название переменной
+    string var = 3;
+    // Левое значение
+    optional string left = 4;
+    // Правое значение
+    optional string right = 5;
+  }
+
+  repeated Data data = 1;
+}
+
+// Ответ на запрос расчета.
+message CalculateResponse {
+  message Item {
+    // Название переменной
+    string var = 1;
+    // Значение ответа
+    string value = 2;
+  }
+
+  repeated Item items = 1;
+}

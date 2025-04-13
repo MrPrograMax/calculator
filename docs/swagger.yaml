@@ -1,0 +1,102 @@
+basePath: /
+definitions:
+  model.Expression:
+    description: Математическое выражение для вычисления
+    properties:
+      left:
+        type: string
+      op:
+        $ref: '#/definitions/model.Operation'
+      right:
+        type: string
+      type:
+        $ref: '#/definitions/model.Type'
+      var:
+        type: string
+    type: object
+  model.Operation:
+    description: 'Арифметическая операция: +, -, *, /'
+    enum:
+    - Unknown
+    - +
+    - '-'
+    - '*'
+    - /
+    type: string
+    x-enum-varnames:
+    - UnknownOperation
+    - Addition
+    - Subtraction
+    - Multiplication
+    - Division
+  model.Result:
+    description: Результат вычисления выражения
+    properties:
+      Value:
+        type: integer
+      Var:
+        type: string
+    type: object
+  model.Type:
+    description: 'Тип операции: calc - вычисление, print - вывод результата'
+    enum:
+    - Unknown
+    - calc
+    - print
+    type: string
+    x-enum-varnames:
+    - UnknownType
+    - Calc
+    - Print
+  rest.errorResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  rest.getCalculateResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/model.Result'
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Пример REST API для калькулятора
+  title: Calculator API
+  version: "1.0"
+paths:
+  /api/calculate:
+    post:
+      consumes:
+      - application/json
+      description: Принимает список выражений и возвращает результаты вычислений
+      parameters:
+      - description: Список выражений для вычисления
+        in: body
+        name: input
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/model.Expression'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Результаты вычислений
+          schema:
+            $ref: '#/definitions/rest.getCalculateResponse'
+        "400":
+          description: Некорректные входные данные
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/rest.errorResponse'
+      summary: Выполнить вычисления
+      tags:
+      - calculator
+swagger: "2.0"
