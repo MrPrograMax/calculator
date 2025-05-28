@@ -19,7 +19,7 @@ import (
 // @Success      200          {array}   model.Result       "Результаты print в порядке вызова"
 // @Failure      400          {object}  map[string]string  "Ошибка валидации или выполнения"
 // @Failure      500          {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Router       /calculate [post]
+// @Router       /api/calculate [post]
 func (h *Handler) Calculate(c *gin.Context) {
 	var input []*model.Expression
 

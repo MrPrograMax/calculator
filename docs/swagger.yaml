@@ -84,7 +84,7 @@ definitions:
 info:
   contact: {}
 paths:
-  /calculate:
+  /api/calculate:
     post:
       consumes:
       - application/json
