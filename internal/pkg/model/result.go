@@ -1,8 +1,15 @@
 package model
 
 // Result результат вычисления
-// @description Результат вычисления выражения
+// swagger:model Result
 type Result struct {
-	Var   string `json:"Var"`
-	Value int64  `json:"Value"`
+	// Название переменной, результат которой выводится
+	// required: true
+	// example: x
+	Var string `json:"var"`
+
+	// Значение переменной
+	// required: true
+	// example: 42
+	Value int64 `json:"value"`
 }

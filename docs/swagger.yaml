@@ -1,17 +1,41 @@
-basePath: /
 definitions:
   model.Expression:
-    description: Математическое выражение для вычисления
     properties:
       left:
-        type: string
+        allOf:
+        - $ref: '#/definitions/model.RawOperand'
+        description: |-
+          Левый операнд: либо число, либо имя переменной
+          oneOf: [integer string]
+          example: 10
       op:
-        $ref: '#/definitions/model.Operation'
+        allOf:
+        - $ref: '#/definitions/model.Operation'
+        description: |-
+          Тип вычислительной операции: +, -, *, /
+          example: "+"
+        example: +
       right:
-        type: string
+        allOf:
+        - $ref: '#/definitions/model.RawOperand'
+        description: |-
+          Правый операнд: либо число, либо имя переменной
+          oneOf: [integer string]
+          example: 20
       type:
-        $ref: '#/definitions/model.Type'
+        allOf:
+        - $ref: '#/definitions/model.Type'
+        description: |-
+          Тип инструкции: calc – вычисление, print – вывод результата
+          Enum: [calc print]
+          required: true
+        example: calc
       var:
+        description: |-
+          Название переменной, в которую записывается результат или печатаем
+          required: true
+          example: x
+        example: x
         type: string
     type: object
   model.Operation:
@@ -29,12 +53,21 @@ definitions:
     - Subtraction
     - Multiplication
     - Division
+  model.RawOperand:
+    type: object
   model.Result:
-    description: Результат вычисления выражения
     properties:
-      Value:
+      value:
+        description: |-
+          Значение переменной
+          required: true
+          example: 42
         type: integer
-      Var:
+      var:
+        description: |-
+          Название переменной, результат которой выводится
+          required: true
+          example: x
         type: string
     type: object
   model.Type:
@@ -48,34 +81,21 @@ definitions:
     - UnknownType
     - Calc
     - Print
-  rest.errorResponse:
-    properties:
-      message:
-        type: string
-    type: object
-  rest.getCalculateResponse:
-    properties:
-      items:
-        items:
-          $ref: '#/definitions/model.Result'
-        type: array
-    type: object
-host: localhost:8080
 info:
   contact: {}
-  description: Пример REST API для калькулятора
-  title: Calculator API
-  version: "1.0"
 paths:
-  /api/calculate:
+  /calculate:
     post:
       consumes:
       - application/json
-      description: Принимает список выражений и возвращает результаты вычислений
+      description: |-
+        Обрабатывает список инструкций:
+        • calc – вычисляет арифметическую операцию (с эмуляцией задержки 50 ms)
+        • print – возвращает значение переменной
       parameters:
-      - description: Список выражений для вычисления
+      - description: Список инструкций calc/print
         in: body
-        name: input
+        name: expressions
         required: true
         schema:
           items:
@@ -85,18 +105,24 @@ paths:
       - application/json
       responses:
         "200":
-          description: Результаты вычислений
+          description: Результаты print в порядке вызова
           schema:
-            $ref: '#/definitions/rest.getCalculateResponse'
+            items:
+              $ref: '#/definitions/model.Result'
+            type: array
         "400":
-          description: Некорректные входные данные
+          description: Ошибка валидации или выполнения
           schema:
-            $ref: '#/definitions/rest.errorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Внутренняя ошибка сервера
           schema:
-            $ref: '#/definitions/rest.errorResponse'
-      summary: Выполнить вычисления
+            additionalProperties:
+              type: string
+            type: object
+      summary: Выполнить инструкции калькулятора
       tags:
-      - calculator
+      - Calculator
 swagger: "2.0"

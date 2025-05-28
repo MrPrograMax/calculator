@@ -15,9 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/calculate": {
+        "/calculate": {
             "post": {
-                "description": "Принимает список выражений и возвращает результаты вычислений",
+                "description": "Обрабатывает список инструкций:\n• calc – вычисляет арифметическую операцию (с эмуляцией задержки 50 ms)\n• print – возвращает значение переменной",
                 "consumes": [
                     "application/json"
                 ],
@@ -25,13 +25,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "calculator"
+                    "Calculator"
                 ],
-                "summary": "Выполнить вычисления",
+                "summary": "Выполнить инструкции калькулятора",
                 "parameters": [
                     {
-                        "description": "Список выражений для вычисления",
-                        "name": "input",
+                        "description": "Список инструкций calc/print",
+                        "name": "expressions",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -44,21 +44,30 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Результаты вычислений",
+                        "description": "Результаты print в порядке вызова",
                         "schema": {
-                            "$ref": "#/definitions/rest.getCalculateResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Result"
+                            }
                         }
                     },
                     "400": {
-                        "description": "Некорректные входные данные",
+                        "description": "Ошибка валидации или выполнения",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера",
                         "schema": {
-                            "$ref": "#/definitions/rest.errorResponse"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -67,23 +76,46 @@ const docTemplate = `{
     },
     "definitions": {
         "model.Expression": {
-            "description": "Математическое выражение для вычисления",
             "type": "object",
             "properties": {
                 "left": {
-                    "type": "string"
+                    "description": "Левый операнд: либо число, либо имя переменной\noneOf: [integer string]\nexample: 10",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.RawOperand"
+                        }
+                    ]
                 },
                 "op": {
-                    "$ref": "#/definitions/model.Operation"
+                    "description": "Тип вычислительной операции: +, -, *, /\nexample: \"+\"",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Operation"
+                        }
+                    ],
+                    "example": "+"
                 },
                 "right": {
-                    "type": "string"
+                    "description": "Правый операнд: либо число, либо имя переменной\noneOf: [integer string]\nexample: 20",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.RawOperand"
+                        }
+                    ]
                 },
                 "type": {
-                    "$ref": "#/definitions/model.Type"
+                    "description": "Тип инструкции: calc – вычисление, print – вывод результата\nEnum: [calc print]\nrequired: true",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Type"
+                        }
+                    ],
+                    "example": "calc"
                 },
                 "var": {
-                    "type": "string"
+                    "description": "Название переменной, в которую записывается результат или печатаем\nrequired: true\nexample: x",
+                    "type": "string",
+                    "example": "x"
                 }
             }
         },
@@ -105,14 +137,18 @@ const docTemplate = `{
                 "Division"
             ]
         },
+        "model.RawOperand": {
+            "type": "object"
+        },
         "model.Result": {
-            "description": "Результат вычисления выражения",
             "type": "object",
             "properties": {
-                "Value": {
+                "value": {
+                    "description": "Значение переменной\nrequired: true\nexample: 42",
                     "type": "integer"
                 },
-                "Var": {
+                "var": {
+                    "description": "Название переменной, результат которой выводится\nrequired: true\nexample: x",
                     "type": "string"
                 }
             }
@@ -130,37 +166,18 @@ const docTemplate = `{
                 "Calc",
                 "Print"
             ]
-        },
-        "rest.errorResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "rest.getCalculateResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.Result"
-                    }
-                }
-            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Calculator API",
-	Description:      "Пример REST API для калькулятора",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

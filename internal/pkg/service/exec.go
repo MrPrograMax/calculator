@@ -1,50 +1,132 @@
 package service
 
 import (
-	myerror "calculator/internal/error"
-	"calculator/internal/pkg/model"
-	db "calculator/internal/pkg/storage"
 	"context"
+	"sync"
+	"time"
+
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
+
+	myerror "calculator/internal/error"
+	"calculator/internal/pkg/model"
 )
 
-func (s Service) Exec(ctx context.Context, expressions []*model.Expression) ([]*model.Result, error) {
-	store := db.NewStorage()
+func (s Service) Exec(_ context.Context, expressions []*model.Expression) ([]*model.Result, error) {
+	type task struct {
+		varName    string
+		op         model.Operation
+		leftVar    string
+		rightVar   string
+		leftConst  int64
+		rightConst int64
+	}
+
+	tasks := make(map[string]*task)
+	depCount := make(map[string]int)
+	dependents := make(map[string][]string)
+	results := make(map[string]int64)
+	var printOrder []string
+	var mu sync.Mutex
 
 	for _, expr := range expressions {
 		switch expr.Type {
 		case model.Calc:
-			err := validateCalcRequest(expr)
-			if err != nil {
-				s.logger.Errorf("[pkg][service] validateCalcRequest: %v", err.Error())
+			if err := validateCalcRequest(expr); err != nil {
 				return nil, errors.Wrap(err, "validateCalcRequest")
 			}
 
-			err = s.Calc(ctx, store, expr)
-			if err != nil {
-				s.logger.Errorf("[pkg][service] Calc: %v", err.Error())
-				return nil, errors.Wrap(err, "calculator.Calc")
+			t := &task{varName: expr.Var, op: *expr.Op}
+
+			if expr.Left.IsVar {
+				t.leftVar = expr.Left.VarName
+				depCount[t.varName]++
+				dependents[t.leftVar] = append(dependents[t.leftVar], t.varName)
+			} else {
+				t.leftConst = expr.Left.IntVal
 			}
+
+			if expr.Right.IsVar {
+				t.rightVar = expr.Right.VarName
+				depCount[t.varName]++
+				dependents[t.rightVar] = append(dependents[t.rightVar], t.varName)
+			} else {
+				t.rightConst = expr.Right.IntVal
+			}
+
+			tasks[t.varName] = t
+
 		case model.Print:
-			err := s.Print(ctx, store, expr)
-			if err != nil {
-				s.logger.Errorf("[pkg][service] Print: %v", err.Error())
-				return nil, errors.Wrap(err, "calculator.Print")
-			}
+			printOrder = append(printOrder, expr.Var)
+
 		default:
-			s.logger.Errorf("[pkg][service] %v", myerror.ErrUnknownOperation)
 			return nil, errors.Wrap(myerror.ErrUnknownOperation, string(expr.Type))
 		}
 	}
 
-	results, err := store.GetResults(ctx)
-	if err != nil {
-		s.logger.Errorf("[pkg][service]  GetResults: %v", err.Error())
-		return nil, errors.Wrap(err, "store.GetResults")
+	// Канал задач и пул воркеров
+	taskCh := make(chan *task, len(tasks))
+
+	var wg sync.WaitGroup
+
+	wg.Add(len(tasks))
+	for i := 0; i < len(tasks); i++ {
+		go func() {
+			for t := range taskCh {
+				mu.Lock()
+				l := t.leftConst
+				if t.leftVar != "" {
+					l = results[t.leftVar]
+				}
+				r := t.rightConst
+				if t.rightVar != "" {
+					r = results[t.rightVar]
+				}
+				mu.Unlock()
+
+				time.Sleep(50 * time.Millisecond)
+
+				var res int64
+				switch t.op {
+				case "+":
+					res = l + r
+				case "-":
+					res = l - r
+				case "*":
+					res = l * r
+				}
+
+				mu.Lock()
+				results[t.varName] = res
+				for _, dep := range dependents[t.varName] {
+					depCount[dep]--
+					if depCount[dep] == 0 {
+						taskCh <- tasks[dep]
+					}
+				}
+				mu.Unlock()
+				wg.Done()
+			}
+		}()
 	}
 
-	return results, nil
+	// Стартуем задачи без зависимостей
+	for name, t := range tasks {
+		if depCount[name] == 0 {
+			taskCh <- t
+		}
+	}
+	wg.Wait()
+	close(taskCh)
+
+	// Собираем результаты в порядке print
+	var out []*model.Result
+	for _, v := range printOrder {
+		if val, ok := results[v]; ok {
+			out = append(out, &model.Result{Var: v, Value: val})
+		}
+	}
+	return out, nil
 }
 
 func validateCalcRequest(req *model.Expression) error {
@@ -54,12 +136,14 @@ func validateCalcRequest(req *model.Expression) error {
 		mErr = multierr.Append(mErr, errors.New("empty operation"))
 	}
 
-	if req.Left == nil || *req.Left == "" {
-		mErr = multierr.Append(mErr, errors.New("empty left value"))
-	}
+	if req.Type == model.Calc {
+		if req.Left.IsVar && req.Left.VarName == "" {
+			mErr = multierr.Append(mErr, errors.New("empty left value"))
+		}
 
-	if req.Right == nil || *req.Right == "" {
-		mErr = multierr.Append(mErr, errors.New("empty right value"))
+		if req.Right.IsVar && req.Right.VarName == "" {
+			mErr = multierr.Append(mErr, errors.New("empty right value"))
+		}
 	}
 
 	return mErr

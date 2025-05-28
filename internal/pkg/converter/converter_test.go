@@ -3,9 +3,10 @@ package converter
 import (
 	"calculator/internal/pkg/model"
 	desc "calculator/pkg/api"
+	"testing"
+
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_ExpressionToModel(t *testing.T) {
@@ -15,15 +16,15 @@ func Test_ExpressionToModel(t *testing.T) {
 		expected []*model.Expression
 	}{
 		{
-			name: "Valid input with calc and operation",
+			name: "Valid input with literal operands",
 			input: &desc.CalculateRequest{
 				Data: []*desc.CalculateRequest_Data{
 					{
-						Type:  "calc",
-						Op:    lo.ToPtr("+"),
-						Var:   "x",
-						Left:  lo.ToPtr("1"),
-						Right: lo.ToPtr("2"),
+						Type:       "calc",
+						Op:         lo.ToPtr("+"),
+						Var:        "x",
+						LeftValue:  &desc.CalculateRequest_Data_LeftConst{LeftConst: 1},
+						RightValue: &desc.CalculateRequest_Data_RightConst{RightConst: 2},
 					},
 				},
 			},
@@ -32,62 +33,48 @@ func Test_ExpressionToModel(t *testing.T) {
 					Type:  model.Calc,
 					Op:    lo.ToPtr(model.Addition),
 					Var:   "x",
-					Left:  lo.ToPtr("1"),
-					Right: lo.ToPtr("2"),
+					Left:  model.RawOperand{IsVar: false, IntVal: 1, VarName: ""},
+					Right: model.RawOperand{IsVar: false, IntVal: 2, VarName: ""},
 				},
 			},
 		},
 		{
-			name: "Unknown type and operation",
+			name: "Valid input with variable operands",
 			input: &desc.CalculateRequest{
 				Data: []*desc.CalculateRequest_Data{
 					{
-						Type:  "unknown",
-						Op:    lo.ToPtr("%"),
-						Var:   "y",
-						Left:  lo.ToPtr("3"),
-						Right: lo.ToPtr("4"),
+						Type:       "calc",
+						Op:         lo.ToPtr("*"),
+						Var:        "y",
+						LeftValue:  &desc.CalculateRequest_Data_LeftVar{LeftVar: "x"},
+						RightValue: &desc.CalculateRequest_Data_RightVar{RightVar: "5"},
 					},
 				},
 			},
 			expected: []*model.Expression{
 				{
-					Type:  model.UnknownType,
-					Op:    lo.ToPtr(model.UnknownOperation),
+					Type:  model.Calc,
+					Op:    lo.ToPtr(model.Multiplication),
 					Var:   "y",
-					Left:  lo.ToPtr("3"),
-					Right: lo.ToPtr("4"),
+					Left:  model.RawOperand{IsVar: true, IntVal: 0, VarName: "x"},
+					Right: model.RawOperand{IsVar: true, IntVal: 0, VarName: "5"},
 				},
 			},
 		},
 		{
-			name: "Nil operation",
+			name: "Print instruction without operands",
 			input: &desc.CalculateRequest{
 				Data: []*desc.CalculateRequest_Data{
-					{
-						Type:  "print",
-						Op:    nil,
-						Var:   "z",
-						Left:  lo.ToPtr("0"),
-						Right: lo.ToPtr("0"),
-					},
+					{Type: "print", Op: nil, Var: "z"},
 				},
 			},
 			expected: []*model.Expression{
-				{
-					Type:  model.Print,
-					Op:    nil,
-					Var:   "z",
-					Left:  lo.ToPtr("0"),
-					Right: lo.ToPtr("0"),
-				},
+				{Type: model.Print, Op: nil, Var: "z", Left: model.RawOperand{}, Right: model.RawOperand{}},
 			},
 		},
 		{
-			name: "Empty input",
-			input: &desc.CalculateRequest{
-				Data: []*desc.CalculateRequest_Data{},
-			},
+			name:     "Empty input",
+			input:    &desc.CalculateRequest{Data: []*desc.CalculateRequest_Data{}},
 			expected: nil,
 		},
 	}

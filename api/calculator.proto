@@ -17,10 +17,18 @@ message CalculateRequest {
     optional string op = 2;
     // Название переменной
     string var = 3;
+
     // Левое значение
-    optional string left = 4;
+    oneof left_value {
+        int64 left_const = 4;
+        string left_var = 5;
+    }
+
     // Правое значение
-    optional string right = 5;
+    oneof right_value {
+        int64 right_const = 6;
+        string right_var = 7;
+    }
   }
 
   repeated Data data = 1;
